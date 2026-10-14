@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "WORLD BRIEF — ข่าวรอบโลก",
+  "short_name": "WORLD BRIEF",
+  "description": "ข่าวรอบโลกในที่เดียว · Your daily window to the world. Thai and English news with automatic updates.",
+  "lang": "th",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f9",
+  "theme_color": "#e94e30",
+  "categories": ["news", "magazines"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
