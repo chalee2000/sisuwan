@@ -71,3 +71,20 @@ With the production server running, `python scripts/smoke.py` exercises language
 ## นำไปใช้งาน / Deployment
 
 Deploy the complete Node application, not only the `dist/` folder: the RSS API needs the server. Run `npm ci`, `npm run build`, then `npm start` on a Node-capable host, and route HTTPS to the configured `PORT` (default 3001). The process must stay running for automatic refresh. No account, database, or API key is required. The app is a PWA that can be installed from a supported browser; it is not an App Store or Play Store package.
+
+## เปิดให้ทุกคนใช้งานผ่าน Render
+
+เตรียมการตั้งค่าไว้ใน `render.yaml` แล้ว โดยใช้ Web Service แผน Free และ Node.js 24:
+
+1. เปิด [หน้าติดตั้งบน Render](https://render.com/deploy?repo=https://github.com/chalee2000/sisuwan) แล้วเข้าสู่ระบบหรือสมัครบัญชี
+2. เชื่อมต่อ GitHub หากระบบร้องขอ แล้วเลือก repository `chalee2000/sisuwan`
+3. ตรวจสอบว่าแผนบริการเป็น **Free** แล้วกดสร้าง/Deploy Blueprint ตามหน้าจอ
+4. รอให้สถานะเป็น **Live** จากนั้นคัดลอก URL HTTPS ที่ Render แสดงเพื่อส่งให้ทุกคน
+
+ผู้เข้าชมเปิดผ่านลิงก์ได้เลยโดยไม่ต้องติดตั้ง Node.js บนเครื่องตนเอง ไม่ต้องเปิดคอมพิวเตอร์ของผู้สร้างค้างไว้ URL จริงจะได้รับหลังสร้างบริการสำเร็จ
+
+Render จะติดตั้ง dependencies, build หน้าเว็บ และรัน API ภายในบริการเดียวกัน แอพใช้พอร์ตที่โฮสต์กำหนดโดยอัตโนมัติ ไม่ต้องเพิ่มฐานข้อมูลหรือ API key
+
+แผน Free อาจพักบริการเมื่อไม่มีผู้ใช้งาน ทำให้การเปิดครั้งแรกต้องรอเริ่มระบบ และข่าวจะไม่อัปเดตระหว่างที่บริการพัก หากต้องการอัปเดตตลอดเวลา ให้เลือกแผนที่รันต่อเนื่องหลังตรวจสอบราคาและเงื่อนไขของ Render เอง ไฟล์นี้เลือก Free ไว้และไม่ได้สั่งซื้อบริการแบบเสียเงิน
+
+การเพิ่ม `render.yaml` เป็นเพียงการเตรียมติดตั้ง แอพยังไม่เผยแพร่จนกว่าจะสร้างบริการในบัญชี Render สำเร็จ
