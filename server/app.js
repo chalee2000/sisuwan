@@ -39,8 +39,8 @@ export function createApp({ services = { th: createNewsService({ language: 'th' 
     response.json({ ...snapshot, articles, total: articles.length });
   });
   app.get('/api/sources', (_request, response) => {
-    const { sources, categories, status, lastUpdated, nextRefreshAt, language } = response.locals.newsService.snapshot();
-    response.json({ sources, categories, status, lastUpdated, nextRefreshAt, language });
+    const { sources, categories, status, lastUpdated, nextRefreshAt, language, edition } = response.locals.newsService.snapshot();
+    response.json({ sources, categories, status, lastUpdated, nextRefreshAt, language, edition });
   });
   app.post('/api/refresh', async (_request, response) => {
     const result = await response.locals.newsService.requestRefresh();

@@ -4,8 +4,8 @@ from playwright.sync_api import sync_playwright, expect
 
 base = os.environ.get('SMOKE_URL', 'http://127.0.0.1:3001')
 article = {'id': 'timer-fixture', 'title': 'Refresh behavior test fixture', 'summary': 'Test data only.',
-           'category': 'world', 'categories': ['world'], 'source': 'Test fixture', 'language': 'en',
-           'publishedAt': None, 'imageUrl': '/art/world.svg', 'url': 'https://example.com/news'}
+           'category': 'models', 'categories': ['models'], 'source': 'Test fixture', 'language': 'en',
+           'publishedAt': None, 'imageUrl': '/art/models.svg', 'url': 'https://example.com/news'}
 with sync_playwright() as p:
     browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH', '/usr/bin/chromium'), args=['--no-sandbox'])
     context = browser.new_context(service_workers='block')
@@ -20,7 +20,7 @@ with sync_playwright() as p:
             state['loading'] = True
         else:
             state['gets'] += 1
-        route.fulfill(json={'articles': [article], 'status': 'live', 'loading': state['loading'],
+        route.fulfill(json={'edition':'ai', 'articles': [article], 'status': 'live', 'loading': state['loading'],
                             'sources': [], 'lastUpdated': '2026-10-14T12:00:00Z', 'refreshIntervalMs': 300000})
 
     page.route('**/api/**', intercept)

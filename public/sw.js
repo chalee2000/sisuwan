@@ -1,6 +1,6 @@
 /* Cache the application shell, never live news or API responses. */
 const CACHE_PREFIX = 'world-brief-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v1`;
+const CACHE_NAME = `${CACHE_PREFIX}ai-v2`;
 const CORE_FILES = ['/', '/icon.svg', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest'];
 
 function isStaticAsset(url) {
@@ -55,7 +55,7 @@ self.addEventListener('fetch', event => {
       } catch {
         const shell = await caches.match('/', { cacheName: CACHE_NAME });
         return shell || new Response(
-          '<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WORLD BRIEF · Offline</title><body style="font-family:system-ui;max-width:36rem;margin:15vh auto;padding:2rem"><h1>WORLD BRIEF</h1><p>คุณออฟไลน์อยู่ เชื่อมต่ออินเทอร์เน็ตเพื่ออ่านข่าวล่าสุด</p><p>You are offline. Reconnect to read the latest news.</p></body></html>',
+          '<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI BRIEF · Offline</title><body style="font-family:system-ui;max-width:36rem;margin:15vh auto;padding:2rem"><h1>AI BRIEF</h1><p>คุณออฟไลน์อยู่ เชื่อมต่ออินเทอร์เน็ตเพื่ออ่านข่าวล่าสุด</p><p>You are offline. Reconnect to read the latest news.</p></body></html>',
           { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
         );
       }

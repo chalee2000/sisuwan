@@ -46,6 +46,13 @@ export function articleSummary(description, title, source) {
   return summary;
 }
 
+export function isAiArticle(title, summary = '') {
+  // Search engines also match article bodies and navigation. Require visible
+  // AI context so a general-news headline is not promoted into this edition.
+  // Product names retain stories such as a Claude release without an "AI" prefix.
+  return /\b(?:AI|A\.I\.?|LLMs?|AGI|artificial intelligence|machine learning|deep learning|neural networks?|large language models?|frontier models?|generative|agentic|superintelligence|OpenAI|ChatGPT|GPT|Anthropic|Claude|Gemini|Copilot|DeepSeek|Grok|Midjourney|Stable Diffusion|Hugging Face|TensorFlow|PyTorch|Perplexity|physical intelligence|vibe[ -]cod(?:e|ed|ing))\b|ปัญญาประดิษฐ์|เอไอ|โมเดลภาษา|การเรียนรู้ของเครื่อง|การเรียนรู้เชิงลึก/i.test(`${title} ${summary}`);
+}
+
 export function parseFeed(xml, feed, now = Date.now()) {
   if (Buffer.byteLength(xml) > MAX_FEED_BYTES) throw new Error('Feed exceeds size limit');
   if (/<!\s*(?:DOCTYPE|ENTITY)\b/i.test(xml)) throw new Error('Unsafe XML declarations');
@@ -63,6 +70,7 @@ export function parseFeed(xml, feed, now = Date.now()) {
     const source = plainText(item.source, 100) || feed.name;
     const title = originalTitle.endsWith(` - ${source}`) ? originalTitle.slice(0, -(source.length + 3)) : originalTitle;
     const summary = articleSummary(item.description ?? item['content:encoded'], title, source);
+    if (!isAiArticle(title, summary)) return [];
     const media = [...asArray(item['media:thumbnail']), ...asArray(item['media:content'])]
       .find(media => safeUrl(media?.['@_url']));
     const enclosure = asArray(item.enclosure).find(value => String(value?.['@_type']).startsWith('image/'));
@@ -88,7 +96,7 @@ export async function fetchFeed(feed, { fetchImpl = proxyFetch, timeoutMs = 6500
     }
     response = await fetchImpl(url.href, {
       dispatcher, redirect: 'manual', signal,
-      headers: { Accept: 'application/rss+xml, application/xml, text/xml', 'User-Agent': 'WorldBrief/1.0 RSS reader' },
+      headers: { Accept: 'application/rss+xml, application/xml, text/xml', 'User-Agent': 'AIBrief/1.0 RSS reader' },
     });
     if (![301, 302, 303, 307, 308].includes(response.status)) break;
     const location = response.headers.get('location');
@@ -182,7 +190,7 @@ export function createNewsService({ language = 'th', feeds = getFeeds(language),
     const result = [...unique.values()].sort((a, b) => (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0));
     const healthy = sources.filter(source => source.status === 'ok').length;
     return {
-      articles: result, categories: CATEGORIES, sources, language,
+      articles: result, categories: CATEGORIES, sources, language, edition: 'ai',
       status: healthy === feeds.length ? 'live' : result.length ? 'partial' : 'unavailable',
       loading: Boolean(inFlight), stale: result.some(article => article.stale),
       lastUpdated, nextRefreshAt: nextRefresh ? new Date(nextRefresh).toISOString() : null,

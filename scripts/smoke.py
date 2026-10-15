@@ -19,11 +19,11 @@ def passed(name):
 def overflow(page):
     return page.evaluate('document.documentElement.scrollWidth > innerWidth + 1')
 
-def fixture_article(id='live-en', language='en', url='https://www.bbc.com/news/articles/example'):
-    return {'id': id, 'title': 'Verified world headline' if language == 'en' else 'หัวข้อข่าวโลกที่ตรวจสอบแล้ว',
-            'summary': 'Publisher summary about global cooperation.' if language == 'en' else 'บทสรุปจากผู้เผยแพร่เกี่ยวกับความร่วมมือทั่วโลก',
-            'category':'world', 'categories':['world'], 'source':'BBC News', 'language':language,
-            'publishedAt':'2026-10-13T10:00:00Z', 'url':url, 'imageUrl':'/art/world.svg'}
+def fixture_article(id='live-en', language='en', url='https://example.com/ai/story'):
+    return {'id': id, 'title': 'Verified AI model headline' if language == 'en' else 'หัวข้อข่าวโมเดล AI ที่ตรวจสอบแล้ว',
+            'summary': 'Publisher summary about artificial intelligence.' if language == 'en' else 'บทสรุปจากผู้เผยแพร่เกี่ยวกับโมเดล AI',
+            'category':'models', 'categories':['models'], 'source':'Test publisher', 'language':language,
+            'publishedAt':'2026-10-13T10:00:00Z', 'url':url, 'imageUrl':'/art/models.svg'}
 
 with sync_playwright() as p:
     browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH', '/usr/bin/chromium'), args=['--no-sandbox','--disable-dev-shm-usage'])
@@ -47,10 +47,10 @@ with sync_playwright() as p:
         if state['mode'] == 'unsafe':
             articles = [fixture_article(id='unsafe', url='javascript:alert(1)')]
             articles[0]['title'] = '<img src=x onerror=alert(1)> unsafe story'
-        route.fulfill(json={'articles':articles, 'status':'unavailable' if state['mode']=='demo' else 'ok', 'loading':False,
+        route.fulfill(json={'edition':'ai', 'articles':articles, 'status':'unavailable' if state['mode']=='demo' else 'ok', 'loading':False,
                             'stale':state['mode']=='stale', 'lastUpdated':'2026-10-13T10:00:00Z',
-                            'sources':[{'id':'bbc-world','name':'BBC News','category':'world','language':'en','status':'ok'},
-                                       {'id':'test','name':'Unavailable source','category':'science','language':'en','status':'error'}]})
+                            'sources':[{'id':'google-models','name':'Google News','category':'models','language':'en','status':'ok'},
+                                       {'id':'test','name':'Unavailable source','category':'research','language':'en','status':'error'}]})
     page.route('**/api/**', handle)
     page.goto(BASE)
     expect(page.get_by_text('กำลังแสดงข้อมูลตัวอย่าง', exact=True)).to_be_visible()
@@ -63,20 +63,21 @@ with sync_playwright() as p:
     passed('Thai default and persistent English switch')
 
     nav = page.locator('nav.navigation')
-    expect(nav.get_by_role('button')).to_have_count(18)
+    expect(nav.get_by_role('button')).to_have_count(11)
     category_names = nav.get_by_role('button').all_text_contents()[1:]
     for category in category_names:
         nav.get_by_role('button', name=category, exact=True).click()
         expect(page.locator('h1')).to_contain_text(category)
         assert page.locator('.news-card').count() >= 1, category
         assert all(x == category for x in page.locator('.news-card .category-label').all_text_contents()), category
-    passed('All 17 category filters contain correctly categorized stories')
-    page.get_by_role('button', name='WORLD BRIEF home').click()
+    passed('All 10 AI category filters contain correctly categorized stories')
+    page.get_by_role('button', name='AI BRIEF home').click()
     page.keyboard.press('/')
     expect(page.get_by_role('textbox')).to_be_focused()
-    page.get_by_role('textbox').fill('everyday AI')
+    search_title = page.locator('.lead-story h2').inner_text()
+    page.get_by_role('textbox').fill(search_title)
     expect(page.locator('.news-card')).to_have_count(1)
-    expect(page.locator('.news-card h3')).to_contain_text('everyday AI')
+    expect(page.locator('.news-card h3')).to_have_text(search_title)
     page.get_by_role('textbox').fill('xyz-does-not-exist')
     expect(page.get_by_role('heading', name='No stories found')).to_be_visible()
     page.get_by_role('button', name='Clear search').click()
@@ -107,18 +108,19 @@ with sync_playwright() as p:
     page.get_by_role('button', name='EN', exact=True).click()
     passed('Article modal focus trapping/Escape restoration and persistent bilingual saved stories')
 
-    page.get_by_role('button', name='WORLD BRIEF home').click()
+    page.get_by_role('button', name='AI BRIEF home').click()
     page.get_by_role('button', name='Interest preferences').click()
-    expect(page.locator('.interest')).to_have_count(17)
+    expect(page.locator('.interest')).to_have_count(10)
     for button in page.locator('.interest').all():
         button.click()
     expect(page.get_by_role('button', name='Choose at least one topic')).to_be_disabled()
-    page.get_by_role('button', name='Science', exact=True).last.click()
+    selected_category = page.locator('.interest').nth(1).inner_text()
+    page.locator('.interest').nth(1).click()
     page.get_by_role('button', name='Save interests', exact=True).click()
-    expect(page.locator('.lead-content .category-label')).to_have_text('Science')
+    expect(page.locator('.lead-content .category-label')).to_have_text(selected_category)
     page.reload()
-    expect(page.locator('.lead-content .category-label')).to_have_text('Science')
-    page.get_by_role('button', name='WORLD BRIEF home').click()
+    expect(page.locator('.lead-content .category-label')).to_have_text(selected_category)
+    page.get_by_role('button', name='AI BRIEF home').click()
     passed('Interest selection validation, filtering, and persistence')
 
     page.get_by_role('button', name='Refresh news', exact=True).click()
@@ -159,17 +161,17 @@ with sync_playwright() as p:
 
     state['mode'] = 'live'
     page.reload()
-    expect(page.locator('.lead-story h2')).to_have_text('Verified world headline')
+    expect(page.locator('.lead-story h2')).to_have_text('Verified AI model headline')
     expect(page.locator('.demo-notice')).to_have_count(0)
     page.locator('.lead-story .story-title-button').click()
     source_link = page.get_by_role('link', name='Read original story')
-    expect(source_link).to_have_attribute('href','https://www.bbc.com/news/articles/example')
+    expect(source_link).to_have_attribute('href','https://example.com/ai/story')
     expect(source_link).to_have_attribute('target','_blank')
     expect(source_link).to_have_attribute('rel','noopener noreferrer')
     page.keyboard.press('Escape')
     page.get_by_role('button', name='TH', exact=True).click()
-    expect(page.locator('.lead-story h2')).to_have_text('หัวข้อข่าวโลกที่ตรวจสอบแล้ว')
-    page.get_by_role('textbox').fill('ความร่วมมือ')
+    expect(page.locator('.lead-story h2')).to_have_text('หัวข้อข่าวโมเดล AI ที่ตรวจสอบแล้ว')
+    page.get_by_role('textbox').fill('โมเดล')
     expect(page.locator('.news-card')).to_have_count(1)
     page.get_by_role('button', name='EN', exact=True).click()
     expect(page.get_by_role('heading', name='No stories found')).to_be_visible()
@@ -179,11 +181,11 @@ with sync_playwright() as p:
     expect(page.get_by_text('Showing cached stories · We’ll try refreshing automatically')).to_be_visible()
     state['mode'] = 'fail'
     page.reload()
-    expect(page.locator('.lead-story h2')).to_have_text('Verified world headline')
+    expect(page.locator('.lead-story h2')).to_have_text('Verified AI model headline')
     expect(page.get_by_text('Showing cached stories · We’ll try refreshing automatically')).to_be_visible()
     state['mode'] = 'demo'
     page.reload()
-    expect(page.locator('.lead-story h2')).to_have_text('Verified world headline')
+    expect(page.locator('.lead-story h2')).to_have_text('Verified AI model headline')
     expect(page.get_by_text('Showing cached stories · We’ll try refreshing automatically')).to_be_visible()
     state['mode'] = 'unsafe'
     page.reload()
@@ -193,6 +195,41 @@ with sync_playwright() as p:
     assert not errors, errors
     passed('Mock live/stale/error/empty states, safe source URLs/text, language-sensitive search')
     context.close()
+
+    # Preserve bookmarks/preferences while isolating old general-news caches.
+    migrated = browser.new_context(service_workers='block')
+    legacy = {'id': 'demo-0', 'title': 'Legacy saved world story', 'summary': 'Original saved summary.',
+              'category': 'world', 'source': 'Legacy publisher', 'language': 'en', 'isDemo': True,
+              'imageUrl': '/art/world.svg', 'publishedAt': None, 'url': None}
+    migrated.add_init_script(script='''const old = %s;
+      localStorage.setItem('worldbrief.lang', JSON.stringify('en'));
+      localStorage.setItem('worldbrief.theme', JSON.stringify('dark'));
+      localStorage.setItem('worldbrief.interests', JSON.stringify(['sports', 'travel']));
+      localStorage.setItem('worldbrief.news.en', JSON.stringify({articles:[old], status:'live'}));
+      localStorage.setItem('worldbrief.saved', JSON.stringify([old]));''' % json.dumps(legacy))
+    migrated_page = migrated.new_page()
+    migrated_page.route('**/api/**', lambda route: route.fulfill(json={'edition':'ai', 'articles':[], 'sources':[], 'status':'unavailable', 'loading':False}))
+    migrated_page.goto(BASE)
+    expect(migrated_page.locator('html')).to_have_attribute('lang','en')
+    expect(migrated_page.locator('html')).to_have_attribute('data-theme','dark')
+    expect(migrated_page.locator('.lead-story')).to_be_visible()
+    expect(migrated_page.get_by_text('Legacy saved world story', exact=True)).to_have_count(0)
+    expect(migrated_page.locator('.demo-notice')).to_be_visible()
+    migrated_page.get_by_role('button', name='Open saved stories').click()
+    expect(migrated_page.locator('.news-card h3')).to_have_text('Legacy saved world story')
+    migrated_page.locator('.news-card .story-title-button').click()
+    expect(migrated_page.get_by_role('dialog')).to_contain_text('Legacy saved world story')
+    expect(migrated_page.get_by_role('dialog')).to_contain_text('Original saved summary.')
+    migrated_page.keyboard.press('Escape')
+    migrated_page.get_by_role('button', name='AI BRIEF home').click()
+    # Ignore an old API version during a rolling server deployment too.
+    migrated_page.unroute('**/api/**')
+    migrated_page.route('**/api/**', lambda route: route.fulfill(json={'articles':[legacy], 'sources':[], 'status':'live', 'loading':False}))
+    migrated_page.reload()
+    expect(migrated_page.get_by_text('Legacy saved world story', exact=True)).to_have_count(0)
+    expect(migrated_page.locator('.demo-notice')).to_be_visible()
+    migrated.close()
+    passed('AI edition migration preserves bookmarks, language and theme; excludes old feed cache and legacy API')
 
     # Real production API + actual service worker, without request interception.
     real = browser.new_context(viewport={'width':1440,'height':1000})
