@@ -1,6 +1,6 @@
 /* Cache the application shell, never live news or API responses. */
 const CACHE_PREFIX = 'world-brief-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}ai-v2`;
+const CACHE_NAME = `${CACHE_PREFIX}ai-v3-images`;
 const CORE_FILES = ['/', '/icon.svg', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest'];
 
 function isStaticAsset(url) {

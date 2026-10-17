@@ -48,7 +48,15 @@ No API key or account is needed for the configured public RSS feeds. The Node pr
 
 - `news.google.com`
 
-In a managed cloud environment, add these domains to the environment's outbound allowlist and save/apply the settings. A configuration draft alone does not enable connectivity. The server respects the environment's `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`, and configured TLS CA trust. Do not disable certificate verification. Where a custom CA is required, configure `NODE_EXTRA_CA_CERTS` before starting Node. Article images, when provided by a publisher, load in the user's browser from that publisher's image host. When an image is missing or unavailable, the app uses a category illustration. The illustrations are not photographs of the reported events.
+In a managed cloud environment, add this domain and the publisher websites whose preview images you want to resolve to the environment's outbound allowlist and save/apply the settings. A configuration draft alone does not enable connectivity. The server respects the environment's `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`, and configured TLS CA trust. Do not disable certificate verification. Where a custom CA is required, configure `NODE_EXTRA_CA_CERTS` before starting Node.
+
+### รูปภาพข่าว / Article images
+
+Google News RSS usually omits photographs. When a real story has no RSS image, the browser now requests its preview image as the story approaches the screen. The server resolves the Google News link, reads `og:image` or `twitter:image` from the original publisher, and caches the result. The browser loads the image directly without a referrer; the server does not proxy or store image files. News headlines remain available while images load.
+
+Image lookups accept only IDs of stories already in the current news cache. Publisher requests use HTTPS, public-address checks, publisher-host restrictions, bounded redirects, time and size limits, and a shared queue. Direct connections use checked DNS answers for the actual socket; an inherited outbound proxy remains responsible for enforcing its destination policy. Failed lookups are cached briefly to avoid repeatedly querying unavailable publishers. Queue congestion returns HTTP 503 with `Retry-After` instead of being cached as a missing photo; the browser retries once. Resolved images also appear in subsequent news responses.
+
+Some publishers block automated access or hotlinking, omit preview images, or require a subscription. Google's link-resolution format can also change. In these cases, or while offline, the app keeps a bundled category illustration instead of a broken image. The illustrations are not photographs of the reported events. Existing saved stories remain readable even when their preview can no longer be resolved.
 
 Feeds have timeouts, a 2 MiB response limit, bounded concurrency, and an explicit HTTPS hostname allowlist. User searches do not alter server fetch destinations. Bookmarks and the chosen language are stored in the browser; there is no user account or cross-device sync.
 
@@ -57,6 +65,7 @@ Feeds have timeouts, a 2 MiB response limit, bounded concurrency, and an explici
 - `GET /api/health`: server availability and current news status.
 - `GET /api/news?lang=th`: cached stories and refresh/source status. `lang` supports `th` and `en`; optional `category` and `search` filter the results.
 - `GET /api/sources?lang=th`: configured feeds, category definitions, availability, and last successful fetch timestamps.
+- `GET /api/article-image/:id?lang=th`: resolve a preview image for a current story; returns `{ "imageUrl": "https://…" }` or `{ "imageUrl": null }`. Unknown IDs return 404. No caller-supplied destination URL is accepted.
 - `POST /api/refresh?lang=th`: refresh the selected language's fixed feed list. Returns the news snapshot plus `refreshAccepted` and `retryAfterMs`. HTTP 202 means refresh is still running; HTTP 200 means complete or cooldown. No API key is required.
 
 Supported category IDs: `models`, `research`, `tools`, `coding`, `business`, `policy`, `robotics`, `hardware`, `creative`, `thailand`. Use `all` or omit `category` for the combined feed.
@@ -71,7 +80,7 @@ The service worker uses a new shell cache and removes previous `world-brief-shel
 
 ## ตรวจสอบหน้าแอพ / Browser verification
 
-With the production server running, `python scripts/smoke.py` exercises language switching, all category filters, search, saved stories, preferences, keyboard dialogs, refresh behavior, responsive layouts, and service-worker offline reading. This optional development check requires the Python `playwright` package and Chromium at `/usr/bin/chromium`; set `CHROMIUM_PATH` and `SMOKE_URL` to override. It uses clearly separate mocked fixtures for failure cases and real HTTP requests for the installed PWA check. Screenshots and the report are written to the ignored `playwright-results/` directory. Run `python scripts/refresh-smoke.py` to verify the five-minute refresh timer, pause control, and manual-refresh polling with a simulated browser clock.
+With the production server running, `python scripts/smoke.py` exercises language switching, all category filters, search, saved stories, preferences, keyboard dialogs, refresh behavior, responsive layouts, and service-worker offline reading. This optional development check requires the Python `playwright` package and Chromium at `/usr/bin/chromium`; set `CHROMIUM_PATH` and `SMOKE_URL` to override. It uses clearly separate mocked fixtures for failure cases and real HTTP requests for the installed PWA check. Screenshots and the report are written to the ignored `playwright-results/` directory. Run `python scripts/refresh-smoke.py` to verify the five-minute refresh timer, pause control, and manual-refresh polling with a simulated browser clock. Run `python scripts/image-smoke.py` for lazy preview resolution, a broken remote image, shared dialog caching, and recovery when a new image URL arrives; its image responses are deliberately mocked, so it does not establish live publisher availability.
 
 ## นำไปใช้งาน / Deployment
 

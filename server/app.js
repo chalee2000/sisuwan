@@ -3,10 +3,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { createNewsService } from './news.js';
+import { createImageService } from './images.js';
 
 const defaultDist = fileURLToPath(new URL('../dist', import.meta.url));
 
-export function createApp({ services = { th: createNewsService({ language: 'th' }), en: createNewsService({ language: 'en' }) }, distPath = defaultDist } = {}) {
+export function createApp({ services = { th: createNewsService({ language: 'th' }), en: createNewsService({ language: 'en' }) }, imageService = createImageService(), distPath = defaultDist } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.use((_request, response, next) => {
@@ -36,7 +37,20 @@ export function createApp({ services = { th: createNewsService({ language: 'th' 
       (category === 'all' || article.categories.includes(category)) &&
       (!search || `${article.title} ${article.summary} ${article.source}`.toLocaleLowerCase().includes(search)));
     response.setHeader('Cache-Control', 'no-store');
-    response.json({ ...snapshot, articles, total: articles.length });
+    response.json({ ...snapshot, articles: articles.map(article => ({ ...article, imageUrl: imageService.peek(article) || article.imageUrl })), total: articles.length });
+  });
+  app.get('/api/article-image/:id', async (request, response) => {
+    // Resolve only stories already obtained from our fixed RSS feeds. Never
+    // accept a caller-provided URL or turn this endpoint into an open proxy.
+    if (!/^[a-f0-9]{20}$/.test(request.params.id)) return response.status(404).json({ imageUrl: null });
+    const article = response.locals.newsService.snapshot().articles.find(item => item.id === request.params.id);
+    if (!article) return response.status(404).json({ imageUrl: null });
+    const imageUrl = await imageService.resolve(article);
+    if (imageUrl === undefined) {
+      response.setHeader('Retry-After', '10');
+      return response.status(503).json({ imageUrl: null });
+    }
+    response.json({ imageUrl });
   });
   app.get('/api/sources', (_request, response) => {
     const { sources, categories, status, lastUpdated, nextRefreshAt, language, edition } = response.locals.newsService.snapshot();
