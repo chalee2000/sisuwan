@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrainCircuit, FlaskConical, Wrench, Code2, ChartNoAxesCombined, Scale, Bot, Cpu, Sparkles, MapPin, ArrowDown, ArrowRight, ArrowUpRight, Bookmark, Check, ChevronDown, Clock3, Download, Globe2, Info, LayoutGrid, LoaderCircle, Moon, Radio, RefreshCw, Search, Settings2, Share2, SlidersHorizontal, Sun, WifiOff, X, Zap } from 'lucide-react';
 import { categories, copy, demoArticles } from './content';
 import { canResolveArticleImage, resolveArticleImage } from './articleImages';
+import { illustrationForArticle } from './illustrations';
 const categoryIcons = { BrainCircuit, FlaskConical, Wrench, Code2, ChartNoAxesCombined, Scale, Bot, Cpu, Sparkles, MapPin, LayoutGrid };
 const categoryIds = new Set(categories.slice(1).map(category => category.id));
 const feedCacheKey = lang => `news.ai-v1.${lang}`;
@@ -25,20 +26,24 @@ function when(date, lang) {
   if (minutes < 1440) return new Intl.RelativeTimeFormat(lang, { numeric: 'auto' }).format(-Math.floor(minutes / 60), 'hour');
   return new Date(date).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short' });
 }
-function ImageWithFallback({ source, fallback, className, priority, imageRef }) {
-  const [failed, setFailed] = useState(false);
-  const currentSource = !failed && source ? source : fallback;
+function ImageWithFallback({ source, fallback, backup, className, priority, imageRef }) {
+  const [failedSources, setFailedSources] = useState([]);
+  const [loadedSource, setLoadedSource] = useState(null);
+  const sources = [...new Set([source, fallback, backup].filter(Boolean))];
+  const currentSource = sources.find(url => !failedSources.includes(url)) || backup;
+  const isIllustration = currentSource !== source;
+  const publisherPhotoLoaded = !isIllustration && loadedSource === currentSource;
   // Titles already label the surrounding story links; repeating them in alt text is redundant.
-  return <img ref={imageRef} className={className} src={currentSource} alt="" width="720" height="480" loading={priority ? 'eager' : 'lazy'} decoding="async" referrerPolicy="no-referrer" onError={currentSource !== fallback ? () => setFailed(true) : undefined} />;
+  return <><img ref={imageRef} className={`article-photo ${className}`} src={currentSource} alt="" width="720" height="480" loading={priority ? 'eager' : 'lazy'} decoding="async" referrerPolicy="no-referrer" style={!isIllustration && !publisherPhotoLoaded ? { backgroundImage: `url("${fallback}")` } : undefined} onLoad={() => setLoadedSource(currentSource)} onError={currentSource !== backup ? () => setFailedSources(previous => [...previous, currentSource]) : undefined} />{!publisherPhotoLoaded && <span className="image-illustration"><span className="image-illustration-th" lang="th">ภาพประกอบ AI</span><span className="image-illustration-en" lang="en">AI illustration</span></span>}</>;
 }
 function ArticleImage({ article, className = '', priority = false }) {
   const imageRef = useRef(null);
   const [resolved, setResolved] = useState(null);
   const imageUrl = typeof article.imageUrl === 'string' ? article.imageUrl.trim() : '';
-  const suppliedSource = illustrationPaths.has(imageUrl) ? imageUrl : safeLink(imageUrl);
+  const suppliedSource = safeLink(imageUrl);
   const language = article.language === 'th' ? 'th' : 'en';
   const resolutionKey = `${language}:${article.id}`;
-  const needsResolution = canResolveArticleImage(article) && (!suppliedSource || illustrationPaths.has(suppliedSource));
+  const needsResolution = canResolveArticleImage(article) && !suppliedSource;
   useEffect(() => {
     if (!needsResolution) return;
     let cancelled = false;
@@ -74,9 +79,10 @@ function ArticleImage({ article, className = '', priority = false }) {
   }, [article.id, language, resolutionKey, needsResolution, suppliedSource]);
   const source = needsResolution && resolved?.key === resolutionKey && resolved.url ? resolved.url : suppliedSource;
   const categoryArt = `/art/${article.category}.svg`;
-  const fallback = illustrationPaths.has(categoryArt) ? categoryArt : '/art/models.svg';
+  const backup = illustrationPaths.has(categoryArt) ? categoryArt : '/art/models.svg';
+  const fallback = illustrationForArticle(article);
   // Remount when the article or URL changes so a failed image never hides a newly supplied photo.
-  return <ImageWithFallback key={`${article.id}:${source}`} source={source} fallback={fallback} className={className} priority={priority} imageRef={imageRef} />;
+  return <ImageWithFallback key={`${article.id}:${source}`} source={source} fallback={fallback} backup={backup} className={className} priority={priority} imageRef={imageRef} />;
 }
 function Modal({ children, title, close, label, wide = false }) {
   const ref = useRef(null);

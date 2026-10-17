@@ -1,12 +1,14 @@
 /* Cache the application shell, never live news or API responses. */
 const CACHE_PREFIX = 'world-brief-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}ai-v3-images`;
-const CORE_FILES = ['/', '/icon.svg', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest'];
+const CACHE_NAME = `${CACHE_PREFIX}ai-v4-photos`;
+const CORE_FILES = ['/', '/icon.svg', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest',
+  '/photos/neural-computing.webp', '/photos/developer-workspace.webp',
+  '/photos/robotics-lab.webp', '/photos/data-center.webp'];
 
 function isStaticAsset(url) {
   return url.origin === self.location.origin &&
     !url.pathname.startsWith('/api/') && url.pathname !== '/api' &&
-    (/^\/(?:assets|art)\/.*\.(?:js|css|svg|png|jpe?g|webp|avif|woff2?)$/i.test(url.pathname) ||
+    (/^\/(?:assets|art|photos)\/.*\.(?:js|css|svg|png|jpe?g|webp|avif|woff2?)$/i.test(url.pathname) ||
       CORE_FILES.slice(1).includes(url.pathname));
 }
 

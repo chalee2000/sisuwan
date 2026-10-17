@@ -2,6 +2,7 @@
 Network fixtures are explicit; this does not claim live publisher availability.
 """
 import os
+import re
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
@@ -53,10 +54,11 @@ with sync_playwright() as p:
     page.wait_for_function("document.querySelectorAll('.news-card img')[1].naturalWidth > 0")
     expect(second_image).to_have_attribute('referrerpolicy', 'no-referrer')
     expect(second_image).to_have_attribute('decoding', 'async')
-    expect(first_image).to_have_attribute('src', '/art/coding.svg')
+    expect(first_image).to_have_attribute('src', re.compile(r'^/photos/.+\.webp$'))
+    expect(cards.nth(0).locator('.image-illustration')).to_be_visible()
     page.wait_for_function("document.querySelector('.news-card img').naturalWidth > 0")
     assert len(requests) < len(articles), 'Offscreen/unrendered stories must not all fetch images at once'
-    print('PASS visible stories resolve images lazily; broken remote image loads bundled fallback', flush=True)
+    print('PASS visible stories resolve images lazily; broken remote image loads labelled bundled photograph', flush=True)
 
     before = requests.count(f'{2:020x}')
     cards.nth(1).locator('.story-title-button').click()
@@ -67,6 +69,39 @@ with sync_playwright() as p:
     page.get_by_role('button', name='Refresh news', exact=True).click()
     expect(first_image).to_have_attribute('src', 'https://photos.example/repaired.png')
     page.wait_for_function("document.querySelector('.news-card img').naturalWidth > 0")
+    expect(cards.nth(0).locator('.image-illustration')).to_have_count(0)
     print('PASS image cache reused by dialog; updated source retries after previous failure', flush=True)
     assert not errors, errors
+    context.close()
+
+    # Reproduce the user's problem: every external thumbnail is unavailable,
+    # and an old news cache still supplies SVG category artwork.
+    local = browser.new_context(viewport={'width': 390, 'height': 844}, service_workers='block')
+    local.add_init_script("localStorage.setItem('worldbrief.lang', JSON.stringify('en'))")
+    localpage = local.new_page()
+    local_articles = [dict(article, imageUrl='/art/coding.svg') for article in articles]
+    for story, category in zip(local_articles, ['models', 'tools', 'research']):
+        story.update(category=category, categories=[category])
+    def no_external_images(route):
+        if '/api/article-image/' in route.request.url:
+            route.fulfill(json={'imageUrl': None})
+        else:
+            route.fulfill(json={'edition': 'ai', 'articles': local_articles, 'sources': [], 'status': 'live', 'loading': False})
+    localpage.route('**/api/**', no_external_images)
+    localpage.goto(BASE)
+    expect(localpage.locator('.lead-story > img')).to_have_attribute('src', re.compile(r'^/photos/.+\.webp$'))
+    localpage.wait_for_function("document.querySelector('.lead-story > img').naturalWidth === 1536")
+    expect(localpage.locator('.lead-story .image-illustration-en')).to_be_visible()
+    localpage.locator('.lead-story').scroll_into_view_if_needed()
+    results = ROOT/'playwright-results'
+    results.mkdir(exist_ok=True)
+    localpage.screenshot(path=str(results/'local-photos-mobile.png'))
+    localpage.get_by_role('button', name='TH', exact=True).click()
+    expect(localpage.locator('.lead-story .image-illustration-th')).to_be_visible()
+    assert not localpage.evaluate('document.documentElement.scrollWidth > innerWidth + 1')
+    localpage.set_viewport_size({'width': 1440, 'height': 1000})
+    localpage.locator('.lead-story').scroll_into_view_if_needed()
+    localpage.screenshot(path=str(results/'local-photos-desktop.png'))
+    print('PASS real bundled photos display on mobile and desktop when every publisher image fails; legacy artwork and bilingual labels handled', flush=True)
+    local.close()
     browser.close()

@@ -243,6 +243,7 @@ with sync_playwright() as p:
     realpage.screenshot(path=str(RESULTS/'desktop-live-th.png'), full_page=True)
     cache_urls = realpage.evaluate('''async () => { const keys = await caches.keys(); return (await Promise.all(keys.map(async key => (await (await caches.open(key)).keys()).map(r=>r.url)))).flat(); }''')
     assert any('/assets/' in url and '.js' in url for url in cache_urls), cache_urls
+    assert len([url for url in cache_urls if '/photos/' in url and url.endswith('.webp')]) == 4, cache_urls
     assert all('/api/' not in url for url in cache_urls)
     real.set_offline(True)
     realpage.reload(wait_until='domcontentloaded')
@@ -250,6 +251,7 @@ with sync_playwright() as p:
     realpage.get_by_role('button', name='เปิดข่าวที่บันทึก').click()
     expect(realpage.locator('.news-card')).to_have_count(1)
     expect(realpage.locator('.news-card h3')).to_have_text(real_title)
+    realpage.wait_for_function("document.querySelector('.news-card img').complete && document.querySelector('.news-card img').naturalWidth > 0")
     realpage.locator('.news-card .story-title-button').click()
     expect(realpage.get_by_role('dialog')).to_contain_text(real_title)
     realpage.screenshot(path=str(RESULTS/'offline-saved-article.png'), full_page=True)
